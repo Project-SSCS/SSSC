@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nextjs-webapp-config
+  namespace: nextjs-webapp
+data:
+  MONGODB_DB: nextapp
