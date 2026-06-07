@@ -4,7 +4,7 @@ metadata:
   name: nextjs-webapp-gateway
 spec:
   selector:
-    istio: ingressgateway
+    istio: aks-istio-ingressgateway-external
   servers:
     - port:
         number: 80
