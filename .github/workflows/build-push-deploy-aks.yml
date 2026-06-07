@@ -108,7 +108,7 @@ jobs:
             printf '%s\n' '    patch: |-'
             printf '%s\n' '      - op: replace'
             printf '%s\n' '        path: /spec/servers/0/hosts/0'
-            printf '%s\n' "        value: ${{ vars.ISTIO_HOST }}"
+            printf '%s\n' "        value: \"${{ vars.ISTIO_HOST }}\""
             printf '%s\n' '  - target:'
             printf '%s\n' '      group: networking.istio.io'
             printf '%s\n' '      version: v1beta1'
@@ -117,7 +117,7 @@ jobs:
             printf '%s\n' '    patch: |-'
             printf '%s\n' '      - op: replace'
             printf '%s\n' '        path: /spec/hosts/0'
-            printf '%s\n' "        value: ${{ vars.ISTIO_HOST }}"
+            printf '%s\n' "        value: \"${{ vars.ISTIO_HOST }}\""
           } > "${KUSTOMIZE_CI_OVERLAY_DIR}/kustomization.yaml"
 
       - name: Preview rendered manifests
