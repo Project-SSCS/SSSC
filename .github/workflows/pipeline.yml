@@ -43,6 +43,12 @@ jobs:
     runs-on: self-hosted
     needs: prepare
 
+    container:
+      image: nextjs-build-runner:1.0
+      options: --user root
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,6 +78,11 @@ jobs:
             ${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Confirm containerized build
+        run: |
+          cat /etc/os-release
+          ls -la /.dockerenv || true
 
   prepare-aks:
     name: Prepare AKS namespace and secrets
