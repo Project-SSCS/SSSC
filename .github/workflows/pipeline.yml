@@ -39,7 +39,7 @@ jobs:
           echo "image_uri=${IMAGE_URI}" >> "${GITHUB_OUTPUT}"
 
   build-sbom-provenance-push:
-    name: Build and push image
+    name: Build, sbom, provenance and push image
     runs-on: self-hosted
     needs: prepare
 
@@ -107,6 +107,8 @@ jobs:
       - name: Verify Signature
         run: |
           cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
 
       - name: Download Attestations
