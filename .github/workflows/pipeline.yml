@@ -136,7 +136,7 @@ jobs:
                 "uri": "git+https://github.com/${{ github.repository }}",
                 "digest": {
                   "sha1": "${{ github.sha }}"
-                }
+                },
                 "entryPoint": ".github/workflows/pipeline.yml"
               }
             },
