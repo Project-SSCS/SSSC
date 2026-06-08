@@ -40,7 +40,7 @@ jobs:
 
   build-and-push:
     name: Build and push image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: prepare
 
     steps:
@@ -75,7 +75,7 @@ jobs:
 
   prepare-aks:
     name: Prepare AKS namespace and secrets
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build-and-push
 
     steps:
@@ -110,7 +110,7 @@ jobs:
 
   render-manifests:
     name: Render Kubernetes manifests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - prepare
       - prepare-aks
@@ -160,7 +160,7 @@ jobs:
 
   deploy:
     name: Deploy to AKS through Istio
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - prepare
       - render-manifests
