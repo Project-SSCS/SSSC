@@ -17,21 +17,15 @@ env:
   KUSTOMIZE_CI_OVERLAY_DIR: k8s/overlays/ci
 
 jobs:
-  build-push-deploy:
-    name: Build image and deploy
+  prepare:
+    name: Prepare deployment variables
     runs-on: ubuntu-latest
+    outputs:
+      acr_login_server: ${{ steps.vars.outputs.acr_login_server }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+      image_uri: ${{ steps.vars.outputs.image_uri }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
       - name: Set deployment variables
         id: vars
         shell: bash
@@ -43,6 +37,22 @@ jobs:
           echo "acr_login_server=${ACR_LOGIN_SERVER}" >> "${GITHUB_OUTPUT}"
           echo "image_tag=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
           echo "image_uri=${IMAGE_URI}" >> "${GITHUB_OUTPUT}"
+
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    needs: prepare
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Log in to Azure Container Registry
         shell: bash
@@ -58,10 +68,23 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ steps.vars.outputs.image_uri }}
-            ${{ steps.vars.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}:latest
+            ${{ needs.prepare.outputs.image_uri }}
+            ${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  prepare-aks:
+    name: Prepare AKS namespace and secrets
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Get AKS credentials
         shell: bash
@@ -85,6 +108,17 @@ jobs:
             --from-literal=MONGODB_URI='${{ secrets.MONGODB_URI }}' \
             --dry-run=client -o yaml | kubectl apply -f -
 
+  render-manifests:
+    name: Render Kubernetes manifests
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - prepare-aks
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Create Kustomize CI overlay
         shell: bash
         run: |
@@ -97,8 +131,8 @@ jobs:
             printf '%s\n' "namespace: ${K8S_NAMESPACE}"
             printf '%s\n' 'images:'
             printf '%s\n' '  - name: nextjs-webapp'
-            printf '%s\n' "    newName: ${{ steps.vars.outputs.acr_login_server }}/${IMAGE_NAME}"
-            printf '%s\n' "    newTag: ${{ steps.vars.outputs.image_tag }}"
+            printf '%s\n' "    newName: ${{ needs.prepare.outputs.acr_login_server }}/${IMAGE_NAME}"
+            printf '%s\n' "    newTag: ${{ needs.prepare.outputs.image_tag }}"
             printf '%s\n' 'patches:'
             printf '%s\n' '  - target:'
             printf '%s\n' '      group: networking.istio.io'
@@ -123,6 +157,67 @@ jobs:
       - name: Preview rendered manifests
         shell: bash
         run: kubectl kustomize "${KUSTOMIZE_CI_OVERLAY_DIR}"
+
+  deploy:
+    name: Deploy to AKS through Istio
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - render-manifests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        shell: bash
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}" \
+            --overwrite-existing
+
+      - name: Create Kustomize CI overlay
+        shell: bash
+        run: |
+          mkdir -p "${KUSTOMIZE_CI_OVERLAY_DIR}"
+          {
+            printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1'
+            printf '%s\n' 'kind: Kustomization'
+            printf '%s\n' 'resources:'
+            printf '%s\n' '  - ../production'
+            printf '%s\n' "namespace: ${K8S_NAMESPACE}"
+            printf '%s\n' 'images:'
+            printf '%s\n' '  - name: nextjs-webapp'
+            printf '%s\n' "    newName: ${{ needs.prepare.outputs.acr_login_server }}/${IMAGE_NAME}"
+            printf '%s\n' "    newTag: ${{ needs.prepare.outputs.image_tag }}"
+            printf '%s\n' 'patches:'
+            printf '%s\n' '  - target:'
+            printf '%s\n' '      group: networking.istio.io'
+            printf '%s\n' '      version: v1beta1'
+            printf '%s\n' '      kind: Gateway'
+            printf '%s\n' '      name: nextjs-webapp-gateway'
+            printf '%s\n' '    patch: |-'
+            printf '%s\n' '      - op: replace'
+            printf '%s\n' '        path: /spec/servers/0/hosts/0'
+            printf '%s\n' "        value: \"${{ vars.ISTIO_HOST }}\""
+            printf '%s\n' '  - target:'
+            printf '%s\n' '      group: networking.istio.io'
+            printf '%s\n' '      version: v1beta1'
+            printf '%s\n' '      kind: VirtualService'
+            printf '%s\n' '      name: nextjs-webapp'
+            printf '%s\n' '    patch: |-'
+            printf '%s\n' '      - op: replace'
+            printf '%s\n' '        path: /spec/hosts/0'
+            printf '%s\n' "        value: \"${{ vars.ISTIO_HOST }}\""
+          } > "${KUSTOMIZE_CI_OVERLAY_DIR}/kustomization.yaml"
 
       - name: Deploy to AKS through Istio
         shell: bash
