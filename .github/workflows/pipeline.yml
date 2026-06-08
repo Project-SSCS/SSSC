@@ -18,7 +18,7 @@ env:
 
 jobs:
   prepare:
-    name: Prepare deployment variables
+    name: Prepare pipeline variables
     runs-on: self-hosted
     outputs:
       acr_login_server: ${{ steps.vars.outputs.acr_login_server }}
@@ -125,32 +125,34 @@ jobs:
       - name: Create provenance predicate
         shell: bash
         run: |
-          cat > provenance.json <<EOF
-          {
-            "builder": {
-              "id": "github-actions-self-hosted-azure-runner"
-            },
-            "buildType": "https://github.com/Attestations/GitHubActionsWorkflow",
-            "invocation": {
-              "configSource": {
-                "uri": "git+https://github.com/${{ github.repository }}",
-                "digest": {
-                  "sha1": "${{ github.sha }}"
+          jq -n \
+            --arg repo "git+https://github.com/${{ github.repository }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg run_id "${{ github.run_id }}" \
+            '{
+              builder: {
+                id: "github-actions-self-hosted-azure-runner"
+              },
+              buildType: "https://github.com/Attestations/GitHubActionsWorkflow",
+              invocation: {
+                configSource: {
+                  uri: $repo,
+                  digest: {
+                    sha1: $sha
+                  },
+                  entryPoint: ".github/workflows/pipeline.yml"
+                }
+              },
+              metadata: {
+                buildInvocationId: $run_id,
+                completeness: {
+                  parameters: true,
+                  environment: true,
+                  materials: true
                 },
-                "entryPoint": ".github/workflows/pipeline.yml"
+                reproducible: false
               }
-            },
-            "metadata": {
-              "buildInvocationId": "${{ github.run_id }}",
-              "completeness": {
-                "parameters": true,
-                "environment": true,
-                "materials": true
-                },
-                "reproducible": false
-              }
-            }
-            EOF
+            }' > provenance.json
 
       - name: Attach provenance attestation
         run: |
