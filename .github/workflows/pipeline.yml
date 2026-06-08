@@ -38,7 +38,7 @@ jobs:
           echo "image_tag=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
           echo "image_uri=${IMAGE_URI}" >> "${GITHUB_OUTPUT}"
 
-  build-and-push:
+  build-sbom-provenance-push:
     name: Build and push image
     runs-on: self-hosted
     needs: prepare
@@ -52,6 +52,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify Cosign
+        run: cosign version
 
       - name: Azure login
         uses: azure/login@v2
@@ -69,10 +75,11 @@ jobs:
         with:
           driver: docker-container
 
-      - name: Build and push image
+      - name: Build and push image using BuildKit
+        id: build
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: "{{defaultContext}}"
           file: ./Dockerfile
           push: true
           tags: |
@@ -82,16 +89,35 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: mode=max
           sbom: true
+          build-args: |
+            BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
       
       - name: Confirm containerized build
         run: |
           cat /etc/os-release
           ls -la /.dockerenv || true
 
+      - name: Sign Image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign sign --yes \
+            "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
+
+      - name: Verify Signature
+        run: |
+          cosign verify \
+            "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
+
+      - name: Download Attestations
+        run: |
+          cosign download attestation \
+            "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
+  
   prepare-aks:
     name: Prepare AKS namespace and secrets
     runs-on: self-hosted
-    needs: build-and-push
+    needs: build-sbom-provenance-push
 
     steps:
       - name: Azure login
