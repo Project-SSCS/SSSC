@@ -123,6 +123,7 @@ jobs:
             "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
 
       - name: Create provenance predicate
+        shell: bash
         run: |
           cat > provenance.json <<EOF
           {
@@ -136,7 +137,7 @@ jobs:
                 "digest": {
                   "sha1": "${{ github.sha }}"
                 }
-                "entryPoint": ".github/workflows/${{ github.workflow }}"
+                "entryPoint": ".github/workflows/pipeline.yml"
               }
             },
             "metadata": {
