@@ -44,7 +44,7 @@ jobs:
     needs: prepare
 
     container:
-      image: nextjs-build-runner:1.0
+      image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:1.0
       options: --user root
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
