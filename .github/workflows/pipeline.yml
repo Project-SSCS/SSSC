@@ -45,6 +45,9 @@ jobs:
 
     container:
       image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:1.0
+      credentials:
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
       options: --user root
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
