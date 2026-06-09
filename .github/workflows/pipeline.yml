@@ -169,12 +169,7 @@ jobs:
           cosign verify \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
-
-      - name: Download Attestations
-        run: |
-          cosign download attestation \
-            "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
+            "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
   
 
   predeploy-verification:
@@ -213,6 +208,11 @@ jobs:
           IMAGE_REF="${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ needs.build-sbom-provenance-push.outputs.image_digest }}"
           echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
           echo "IMAGE_REF=${IMAGE_REF}" >> "$GITHUB_ENV"
+          
+      - name: Debug Cosign Tree
+        run: |
+          echo "Inspecting $IMAGE_REF"
+          cosign tree "$IMAGE_REF"
 
       - name: Verify image signature
         run: |
@@ -223,11 +223,12 @@ jobs:
 
       - name: Verify SBOM attestation
         run: |
-          cosign verify-attestation \
+          time cosign verify-attestation \
             --type spdxjson \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "$IMAGE_REF"
+            "$IMAGE_REF" \
+            -d
 
       - name: Verify provenance attestation
         run: |
@@ -237,14 +238,9 @@ jobs:
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF"
 
-      - name: Download and inspect provenance
-        run: |
-          cosign download attestation "$IMAGE_REF" > attestations.json
-          cat attestations.json
-
       - name: Predeployment verification passed
         run: |
-          echo "Supply chain verification passed for $IMAGE_REF
+          echo "Supply chain verification passed for $IMAGE_REF"
 
   
   prepare-aks:
