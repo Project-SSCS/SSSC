@@ -42,6 +42,7 @@ jobs:
     name: Build, sbom, provenance and push image
     runs-on: self-hosted
     needs: prepare
+    
     outputs:
       image_digest: ${{ steps.build.outputs.digest }}
 
@@ -207,6 +208,7 @@ jobs:
         run: az acr login --name "${{ vars.ACR_NAME }}"
 
       - name: Set image reference
+        id: image
         run: |
           IMAGE_REF="${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.image_digest }}"
           echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
