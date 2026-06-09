@@ -223,12 +223,11 @@ jobs:
 
       - name: Verify SBOM attestation
         run: |
-          time cosign verify-attestation \
+          cosign verify-attestation \
             --type spdxjson \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF" \
-            -d
 
       - name: Verify provenance attestation
         run: |
