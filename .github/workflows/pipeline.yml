@@ -210,7 +210,7 @@ jobs:
       - name: Set image reference
         id: image
         run: |
-          IMAGE_REF="${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.image_digest }}"
+          IMAGE_REF="${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ needs.build-sbom-provenance-push.outputs.image_digest }}"
           echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
           echo "IMAGE_REF=${IMAGE_REF}" >> "$GITHUB_ENV"
 
