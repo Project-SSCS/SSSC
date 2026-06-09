@@ -42,6 +42,8 @@ jobs:
     name: Build, sbom, provenance and push image
     runs-on: self-hosted
     needs: prepare
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
 
     container:
       image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:1.0
@@ -173,10 +175,82 @@ jobs:
           cosign download attestation \
             "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
   
+
+  predeploy-verification:
+    name: Predeployment supply chain verification
+    runs-on: self-hosted
+    needs:
+      - prepare
+      - build-sbom-provenance-push
+
+    container:
+      image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:1.0
+      credentials:
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+      options: --user root
+      volumes:
+        -  /var/run/docker.sock:/var/run/docker.sock
+
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+      
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Set image reference
+        run: |
+          IMAGE_REF="${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.image_digest }}"
+          echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_REF=${IMAGE_REF}" >> "$GITHUB_ENV"
+
+      - name: Verify image signature
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF"
+
+      - name: Verify SBOM attestation
+        run: |
+          cosign verify-attestation \
+            --type spdxjson \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF"
+
+      - name: Verify provenance attestation
+        run: |
+          cosign verify-attestation \
+            --type slsaprovenance \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF"
+
+      - name: Download and inspect provenance
+        run: |
+          cosign download attestation "$IMAGE_REF" > attestations.json
+          cat attestations.json
+
+      - name: Predeployment verification passed
+        run: |
+          echo "Supply chain verification passed for $IMAGE_REF
+
+  
   prepare-aks:
     name: Prepare AKS namespace and secrets
     runs-on: self-hosted
-    needs: build-sbom-provenance-push
+    needs: 
+      - build-sbom-provenance-push
+      - predeploy-verification
 
     steps:
       - name: Azure login
@@ -264,6 +338,7 @@ jobs:
     needs:
       - prepare
       - render-manifests
+      - predeploy-verification
 
     steps:
       - name: Checkout repository
