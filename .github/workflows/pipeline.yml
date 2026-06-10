@@ -56,6 +56,12 @@ jobs:
         - /var/run/docker.sock:/var/run/docker.sock
 
     steps:
+      - name: Check current user
+        run: |
+          whoami
+          id
+          id -u 
+          
       - name: Checkout repository
         uses: actions/checkout@v4
 
