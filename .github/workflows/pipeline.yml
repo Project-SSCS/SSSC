@@ -196,8 +196,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Login to ACR
-        run: az acr login --name "${{ vars.ACR_NAME }}"
+      - name: Login to ACR for Cosign
+        shell: bash
+        run: |
+          TOKEN=$(az acr login --name "${{ vars.ACR_NAME }}" --expose-token --query accessToken -o tsv)
+          cosign login \
+            "${{ vars.ACR_NAME }}.azurecr.io" \
+            --username 00000000-0000-0000-0000-000000000000 \
+            --password "$TOKEN"
 
       - name: Set image reference
         id: image
@@ -206,7 +212,7 @@ jobs:
           echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
           echo "IMAGE_REF=${IMAGE_REF}" >> "$GITHUB_ENV"
           
-      - name: Debug Cosign Tree
+      - name: Print Cosign Tree
         run: |
           echo "Inspecting $IMAGE_REF"
           cosign tree "$IMAGE_REF"
