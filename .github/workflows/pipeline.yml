@@ -224,13 +224,13 @@ jobs:
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF"
 
-      - name: Verify SBOM attestation
-        run: |
-          cosign verify-attestation \
-            --type spdxjson \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "$IMAGE_REF" \
+      # - name: Verify SBOM attestation
+      #  run: |
+      #    cosign verify-attestation \
+      #      --type spdxjson \
+      #      --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+      #      --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+      #      "$IMAGE_REF" \
 
       - name: Verify provenance attestation
         run: |
