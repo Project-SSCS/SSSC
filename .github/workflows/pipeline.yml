@@ -40,7 +40,7 @@ jobs:
 
   build-sbom-provenance-push:
     name: Build, sbom, provenance and push image
-    runs-on: self-hosted
+    runs-on: [ self-hosted, build ]
     needs: prepare
     
     outputs:
@@ -174,19 +174,16 @@ jobs:
 
   predeploy-verification:
     name: Predeployment supply chain verification
-    runs-on: self-hosted
+    runs-on: [ self-hosted, deploy ]
     needs:
       - prepare
       - build-sbom-provenance-push
 
     container:
-      image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:1.0
+      image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-deploy-runner:1.0
       credentials:
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
-      options: --user root
-      volumes:
-        -  /var/run/docker.sock:/var/run/docker.sock
 
     steps:
       - name: Install Cosign
@@ -244,10 +241,16 @@ jobs:
   
   prepare-aks:
     name: Prepare AKS namespace and secrets
-    runs-on: self-hosted
+    runs-on: [ self-hosted, deploy ]
     needs: 
       - build-sbom-provenance-push
       - predeploy-verification
+  
+    container:
+      image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-deploy-runner:1.0
+      credentials:
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
 
     steps:
       - name: Azure login
@@ -281,10 +284,16 @@ jobs:
 
   render-manifests:
     name: Render Kubernetes manifests
-    runs-on: self-hosted
+    runs-on: [ self-hosted, deploy ]
     needs:
       - prepare
       - prepare-aks
+
+    container:
+      image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-deploy-runner:1.0
+      credentials:
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
 
     steps:
       - name: Checkout repository
@@ -331,11 +340,17 @@ jobs:
 
   deploy:
     name: Deploy to AKS through Istio
-    runs-on: self-hosted
+    runs-on: [ self-hosted, deploy ]
     needs:
       - prepare
       - render-manifests
       - predeploy-verification
+
+    container:
+      image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-deploy-runner:1.0
+      credentials:
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
 
     steps:
       - name: Checkout repository
