@@ -279,6 +279,30 @@ jobs:
         run: |
           echo "Supply chain verification passed for $IMAGE_REF"
 
+      - name: Verify expected SPIFFE builder identity
+        shell: bash
+        run: |
+          EXPECTED_SPIFFE_ID="spiffe://supplychain.local/ci/docker-builder/nextjs-webapp"
+
+          cosign verify-attestation \
+            --type slsaprovenance \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF" > provenance-attestation.json
+
+          BUILDER_ID=$(cat provenance-attestation.json \
+            | jq -r '.payload' \
+            | base64 -d \
+            | jq -r '.predicate.builder.id')
+
+          echo "Builder ID from provenance: $BUILDER_ID"
+          if [ "$BUILDER_ID" != "$EXPECTED_SPIFFE_ID" ]; then
+            echo "Invalid builder identity"
+            exit 1
+          fi
+
+          echo "Trusted SPIFFE builder identity verified"
+
   
   prepare-aks:
     name: Prepare AKS namespace and secrets
