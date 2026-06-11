@@ -169,7 +169,7 @@ jobs:
             '{
               builder: {
                 #id: "github-actions-self-hosted-azure-runner"
-                id: ${{ steps.spiffe.outputs.builder_spiffe_id }}
+                id: "${{ steps.spiffe.outputs.builder_spiffe_id }}"
               },
               buildType: "https://github.com/Attestations/GitHubActionsWorkflow",
               invocation: {
