@@ -85,12 +85,15 @@ jobs:
 
       - name: Fetch SPIFFE identity
         id: spiffe
+        shell: bash
         run: |
           spire-agent api fetch x509 \
            -socketPath /opt/spire/sockets/agent.sock > svid.txt
           cat svid.txt
 
-          SPIFFE_ID=$(grep -o 'spiffe://[^ ]*' svid.txt | head -1)
+          SPIFFE_ID=$(awk '/SPIFFE ID:/ {print $3; exit}' svid.txt)
+          #SPIFFE_ID=$(grep -o 'spiffe://[^ ]*' svid.txt | head -1)
+          
           if [ -z "$SPIFFE_ID" ]; then
             echo "Failed to fetch SPIFFE ID"
             exit 1
@@ -99,7 +102,12 @@ jobs:
           echo "Builder SPIFFE ID: $SPIFFE_ID"
           echo "builder_spiffe_id=$SPIFFE_ID" >> "$GITHUB_OUTPUT"
           echo "BUILDER_SPIFFE_ID=$SPIFFE_ID" >> "$GITHUB_ENV"
-          
+
+      - name: Debug SPIFFE env
+        shell: bash
+        run: |
+          echo "BUILDER_SPIFFE_ID from env: ${BUILDER_SPIFFE_ID}"
+          echo "builder_spiffe_id from step output: ${{ steps.spiffe.outputs.builder_spiffe_id }}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -157,7 +165,7 @@ jobs:
             --arg repo "git+https://github.com/${{ github.repository }}" \
             --arg sha "${{ github.sha }}" \
             --arg run_id "${{ github.run_id }}" \
-            --arg spiffe_id "${BUILDER_SPIFFE_ID}" \
+            --arg spiffe_id "${{ steps.spiffe.outputs.builder_spiffe_id }}" \
             '{
               builder: {
                 #id: "github-actions-self-hosted-azure-runner"
