@@ -5,10 +5,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      input_text:
-        description: 'Text to classify'
-        required: true
 
 permissions:
   contents: read
