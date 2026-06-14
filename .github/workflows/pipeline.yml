@@ -167,11 +167,10 @@ jobs:
         if: steps.scan.outputs.count != '0'
         run: |
           docker pull sumitiitj26/cve_explotability:latest
+          echo "=== Exploitability ranking ==="
           docker run --rm sumitiitj26/cve_explotability:latest \
             --from-hub "${{ env.HF_MODEL }}" \
             --cves $(tr '\n' ' ' < cves.txt) | tee exploitability.txt
-          echo "=== Exploitability ranking ==="
-          cat exploitability.csv
 
       - name: Upload exploitability report
         if: steps.scan.outputs.count != '0'
