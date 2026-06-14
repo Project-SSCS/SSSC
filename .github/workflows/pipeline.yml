@@ -15,6 +15,7 @@ env:
   IMAGE_NAME: nextjs-webapp
   K8S_NAMESPACE: nextjs-webapp
   KUSTOMIZE_CI_OVERLAY_DIR: k8s/overlays/ci
+  HF_MODEL: sumitp76/cve-exploitability
 
 jobs:
   prepare:
@@ -150,6 +151,35 @@ jobs:
         run: |
           syft "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}" \
             -o spdx-json=sbom.spdx.json
+
+      - name: Scan SBOM for CVEs (Grype)
+        id: scan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+          grype sbom:sbom.spdx.json -o json > grype.json
+          # deduped plain CVE list (also used to detect "nothing found")
+          jq -r '.matches[].vulnerability.id' grype.json | grep -E '^CVE-' | sort -u > cves.txt
+          echo "count=$(wc -l < cves.txt)" >> "$GITHUB_OUTPUT"
+          echo "Found $(wc -l < cves.txt) CVEs"
+
+      - name: Score exploitability (pull & run inference image)
+        if: steps.scan.outputs.count != '0'
+        run: |
+          docker run --rm -v "$PWD:/data" \
+            sumitiitj26/cve_explotability:latest \
+            --grype /data/grype.json \
+            --from-hub "${{ env.HF_MODEL }}" \
+            --out /data/exploitability.csv
+          echo "=== Exploitability ranking ==="
+          cat exploitability.csv
+
+      - name: Upload exploitability report
+        if: steps.scan.outputs.count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: exploitability-report
+          path: exploitability.csv
 
       - name: Attach SBOM attestation
         run: |
