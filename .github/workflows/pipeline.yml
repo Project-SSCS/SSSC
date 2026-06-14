@@ -166,11 +166,10 @@ jobs:
       - name: Score exploitability (pull & run inference image)
         if: steps.scan.outputs.count != '0'
         run: |
-          docker run --rm -v "$PWD:/data" \
-            sumitiitj26/cve_explotability:latest \
-            --grype /data/grype.json \
+          docker pull sumitiitj26/cve_explotability:latest
+          docker run --rm sumitiitj26/cve_explotability:latest \
             --from-hub "${{ env.HF_MODEL }}" \
-            --out /data/exploitability.csv
+            --cves $(tr '\n' ' ' < cves.txt) | tee exploitability.txt
           echo "=== Exploitability ranking ==="
           cat exploitability.csv
 
