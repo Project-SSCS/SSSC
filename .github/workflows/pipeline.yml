@@ -38,20 +38,20 @@ jobs:
       - name: Verify build runner digest
         shell: bash
         run: |
-          #EXPECTED_DIGEST="${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
+          EXPECTED_DIGEST="${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
           ACTUAL_DIGEST=$(
             docker inspect \
-              "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:1.0" \
+              "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:2.0" \
               --format='{{index .RepoDigests 0}}' \
               | cut -d@ -f2
             )
 
-          #echo "Expected: $EXPECTED_DIGEST"
+          echo "Expected: $EXPECTED_DIGEST"
           echo "Actual:   $ACTUAL_DIGEST"
 
-          #if [ "$EXPECTED_DIGEST" != "$ACTUAL_DIGEST" ]; then
-          #  echo "Build runner digest verification failed"
-          #fi
+          if [ "$EXPECTED_DIGEST" != "$ACTUAL_DIGEST" ]; then
+            echo "Build runner digest verification failed"
+          fi
           echo "Build runner digest verification successful"
 
     
