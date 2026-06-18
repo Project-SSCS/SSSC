@@ -335,6 +335,30 @@ jobs:
 
           echo "Trusted SPIFFE builder identity verified"
 
+      - name: Verify Rekor transparency log evidence
+        shell: bash
+        run: |
+          echo "Verifying Rekor transparency log evidence for: $IMAGE_REF"
+          cosign verify \
+            --rekor-url https://rekor.sigstore.dev \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF" > rekor-image-signature.json
+
+          cosign verify-attestation \
+            --rekor-url https://rekor.sigstore.dev \
+            --type slsaprovenance \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF" > rekor-provenance-attestation.json
+
+          echo "Rekor transparency log verification completed."
+          echo "Image signature Rekor evidence:"
+          head -40 rekor-image-signature.json
+
+          echo "Provenance attestation Rekor evidence:"
+          head -40 rekor-provenance-attestation.json
+
   
   prepare-aks:
     name: Prepare AKS namespace and secrets
