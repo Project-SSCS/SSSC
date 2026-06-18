@@ -240,6 +240,7 @@ jobs:
               builder: {
                 #id: "github-actions-self-hosted-azure-runner"
                 id: "${{ steps.spiffe.outputs.builder_spiffe_id }}"
+                runnerDigest: "${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
               },
               buildType: "https://github.com/Attestations/GitHubActionsWorkflow",
               invocation: {
@@ -277,12 +278,50 @@ jobs:
             "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
   
 
+  validate-deply-runner:
+    name: Validate Deploy Runner
+    runs-on: self-hosted
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          
+      - name: Pull deploy runner image
+        run: |
+          az acr login --name "${{ vars.ACR_NAME }}"
+          docker pull "${{ vars.ACR_NAME }}.azurecr.io/nextjs-deploy-runner:1.0"
+
+      - name: Verify deploy runner digest
+        shell: bash
+        run: |
+          EXPECTED_DIGEST="${{ vars.TRUSTED_DEPLOY_RUNNER_DIGEST }}"
+          ACTUAL_DIGEST=$(
+            docker inspect \
+              "${{ vars.ACR_NAME }}.azurecr.io/nextjs-deploy-runner:1.0" \
+              --format='{{index .RepoDigests 0}}' \
+              | cut -d@ -f2
+            )
+
+          echo "Expected: $EXPECTED_DIGEST"
+          echo "Actual:   $ACTUAL_DIGEST"
+
+          if [ "$EXPECTED_DIGEST" != "$ACTUAL_DIGEST" ]; then
+            echo "Deploy runner digest verification failed"
+          fi
+          echo "Deploy runner digest verification successful"
+
+          
   predeploy-verification:
     name: Predeployment supply chain verification
     runs-on: [ self-hosted, deploy ]
     needs:
       - prepare
       - build-sbom-provenance-push
+      - validate-deply-runner
 
     container:
       image: ${{ vars.ACR_NAME }}.azurecr.io/nextjs-deploy-runner:1.0
