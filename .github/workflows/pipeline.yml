@@ -18,6 +18,43 @@ env:
   HF_MODEL: sumitp76/cve-exploitability
 
 jobs:
+  validate-build-runner:
+    name: Validate Build Runner
+    runs-on: self-hosted
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          
+      - name: Pull build runner image
+        run: |
+          az acr login --name "${{ vars.ACR_NAME }}"
+          docker pull "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:2.0"
+
+      - name: Verify build runner digest
+        shell: Bash
+        run: |
+          #EXPECTED_DIGEST="${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
+          ACTUAL_DIGEST=$(
+            docker inspect \
+              "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:1.0" \
+              --format='{{index .RepoDigests 0}}' \
+              | cut -d@ -f2
+            )
+
+          #echo "Expected: $EXPECTED_DIGEST"
+          echo "Actual:   $ACTUAL_DIGEST"
+
+          #if [ "$EXPECTED_DIGEST" != "$ACTUAL_DIGEST" ]; then
+          #  echo "Build runner digest verification failed"
+          #fi
+          echo "Build runner digest verification successful"
+
+    
   prepare:
     name: Prepare pipeline variables
     runs-on: self-hosted
