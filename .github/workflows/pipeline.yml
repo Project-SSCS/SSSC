@@ -36,7 +36,7 @@ jobs:
           docker pull "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:2.0"
 
       - name: Verify build runner digest
-        shell: Bash
+        shell: bash
         run: |
           #EXPECTED_DIGEST="${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
           ACTUAL_DIGEST=$(
@@ -58,6 +58,7 @@ jobs:
   prepare:
     name: Prepare pipeline variables
     runs-on: self-hosted
+    needs: validate-build-runner
     outputs:
       acr_login_server: ${{ steps.vars.outputs.acr_login_server }}
       image_tag: ${{ steps.vars.outputs.image_tag }}
