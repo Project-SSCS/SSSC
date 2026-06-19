@@ -236,7 +236,7 @@ jobs:
             --arg sha "${{ github.sha }}" \
             --arg run_id "${{ github.run_id }}" \
             --arg spiffe_id "${{ steps.spiffe.outputs.builder_spiffe_id }}" \
-            --arg runner_digest "${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}" \
+            --arg runner_digest "${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}" \
             '{
               builder: {
                 id: $spiffe_id,
@@ -390,7 +390,7 @@ jobs:
       - name: Verify build runner digest from provenance
         shell: bash
         run: |
-          EXPECTED_RUNNER_DIGEST="${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
+          EXPECTED_RUNNER_DIGEST="${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}"
 
           ACTUAL_RUNNER_DIGEST=$(cat provenance-attestation.json \
             | jq -r '.payload' \
