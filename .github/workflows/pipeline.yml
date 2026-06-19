@@ -239,7 +239,6 @@ jobs:
             --arg runner_digest "${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}" \
             '{
               builder: {
-                #id: "github-actions-self-hosted-azure-runner"
                 id: $spiffe_id,
                 runnerDigest: $runner_digest
               },
@@ -282,7 +281,9 @@ jobs:
   validate-deply-runner:
     name: Validate Deploy Runner
     runs-on: self-hosted
-    needs: validate-build-runner
+    needs: 
+      - validate-build-runner
+      - build-sbom-provenance-push
 
     steps:
       - name: Azure Login
