@@ -230,13 +230,26 @@ jobs:
 
       - name: Create provenance predicate
         shell: bash
+        env:
+          TRUSTED_BUILD_RUNNER_DIGEST: ${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}
+          BUILDER_SPIFFE_ID: ${{ steps.spiffe.outputs.builder_spiffe_id }}
         run: |
+          if [ -z "$TRUSTED_BUILD_RUNNER_DIGEST" ]; then
+            echo "TRUSTED_BUILD_RUNNER_DIGEST is empty"
+            exit 1
+          fi
+
+          if [ -z "$BUILDER_SPIFFE_ID" ]; then
+            echo "BUILDER_SPIFFE_ID is empty"
+            exit 1
+          fi
+        
           jq -n \
             --arg repo "git+https://github.com/${{ github.repository }}" \
             --arg sha "${{ github.sha }}" \
             --arg run_id "${{ github.run_id }}" \
-            --arg spiffe_id "${{ steps.spiffe.outputs.builder_spiffe_id }}" \
-            --arg runner_digest "${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}" \
+            --arg spiffe_id "$BUILDER_SPIFFE_ID" \
+            --arg runner_digest "$TRUSTED_BUILD_RUNNER_DIGEST" \
             '{
               builder: {
                 id: $spiffe_id,
