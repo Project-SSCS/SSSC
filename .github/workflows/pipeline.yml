@@ -239,8 +239,8 @@ jobs:
             --arg runner_digest "${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}" \
             '{
               builder: {
-                id: "${{ steps.spiffe.outputs.builder_spiffe_id }}",
-                runnerDigest: "${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}"
+                id: $spiffe_id,
+                runnerDigest: $runner_digest
               },
               buildType: "https://github.com/Attestations/GitHubActionsWorkflow",
               invocation: {
