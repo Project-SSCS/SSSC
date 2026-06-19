@@ -236,11 +236,12 @@ jobs:
             --arg sha "${{ github.sha }}" \
             --arg run_id "${{ github.run_id }}" \
             --arg spiffe_id "${{ steps.spiffe.outputs.builder_spiffe_id }}" \
+            --arg runner_digest "${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}" \
             '{
               builder: {
                 #id: "github-actions-self-hosted-azure-runner"
                 id: "${{ steps.spiffe.outputs.builder_spiffe_id }}"
-                runnerDigest: "${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
+                runnerDigest: $runner_digest
               },
               buildType: "https://github.com/Attestations/GitHubActionsWorkflow",
               invocation: {
@@ -382,11 +383,31 @@ jobs:
             --type slsaprovenance \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "$IMAGE_REF"
+            "$IMAGE_REF" > provenance-attestation.json
 
-      - name: Predeployment verification passed
+      - name: Verify build runner digest from provenance
+        shell: bash
         run: |
-          echo "Supply chain verification passed for $IMAGE_REF"
+          EXPECTED_RUNNER_DIGEST="${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
+
+          ACTUAL_RUNNER_DIGEST=$(cat provenance-attestation.json \
+            | jq -r '.payload' \
+            | base64 -d \
+            | jq -r '.predicate.builder.runnerDigest')
+
+          echo "Expected runner digest: $EXPECTED_RUNNER_DIGEST"
+          echo "Actual runner digest:   $ACTUAL_RUNNER_DIGEST"
+
+          if [ -z "$ACTUAL_RUNNER_DIGEST" ] || [ "$ACTUAL_RUNNER_DIGEST" = "null" ]; then
+            echo "Runner digest missing from provenance"
+            exit 1
+          fi
+    
+          if [ "$ACTUAL_RUNNER_DIGEST" != "$EXPECTED_RUNNER_DIGEST" ]; then
+            echo "Build runner digest verification failed"
+          fi
+
+          echo "Build runner digest verified from signed provenance"
 
       - name: Verify expected SPIFFE builder identity
         shell: bash
@@ -435,6 +456,10 @@ jobs:
 
           echo "Provenance attestation Rekor evidence:"
           head -40 rekor-provenance-attestation.json
+
+      - name: Predeployment verification passed
+        run: |
+          echo "Supply chain verification passed for $IMAGE_REF"
 
   
   prepare-aks:
