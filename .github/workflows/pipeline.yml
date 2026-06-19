@@ -391,6 +391,14 @@ jobs:
         shell: bash
         run: |
           EXPECTED_RUNNER_DIGEST="${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}"
+          
+          cosign verify-attestation \
+            --type slsaprovenance \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF" > provenance-attestation.json
+          
+          cat provenance-attestation.json
 
           ACTUAL_RUNNER_DIGEST=$(cat provenance-attestation.json \
             | jq -r '.payload' \
