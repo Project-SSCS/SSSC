@@ -240,7 +240,7 @@ jobs:
             '{
               builder: {
                 #id: "github-actions-self-hosted-azure-runner"
-                id: "${{ steps.spiffe.outputs.builder_spiffe_id }}"
+                id: $spiffe_id,
                 runnerDigest: $runner_digest
               },
               buildType: "https://github.com/Attestations/GitHubActionsWorkflow",
@@ -282,6 +282,7 @@ jobs:
   validate-deply-runner:
     name: Validate Deploy Runner
     runs-on: self-hosted
+    needs: validate-build-runner
 
     steps:
       - name: Azure Login
