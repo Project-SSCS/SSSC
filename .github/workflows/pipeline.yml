@@ -276,11 +276,27 @@ jobs:
               }
             }' > provenance.json
 
+      - name: Validate provenance predicate before attestation
+        shell: bash
+        run: |
+          echo "Generated provenance:"
+          cat provenance.json
+
+          echo "Builder ID:"
+          jq -r '.builder.id' provenance.json
+
+          echo "Runner digest:"
+          jq -r '.builder.runnerDigest' provenance.json
+
+          jq -e '.builder.runnerDigest != null and .builder.runnerDigest != ""' provenance.json
+          
+
       - name: Attach provenance attestation
+        shell: bash
         run: |
           cosign attest --yes \
             --predicate provenance.json \
-            --type slsaprovenance \
+            --type custom-slsa-provenance \
             "${{ needs.prepare.outputs.acr_login_server }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
 
       - name: Verify Signature
@@ -395,7 +411,7 @@ jobs:
       - name: Verify provenance attestation
         run: |
           cosign verify-attestation \
-            --type slsaprovenance \
+            --type custom-slsa-provenance \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF" > provenance-attestation.json
@@ -406,7 +422,7 @@ jobs:
           EXPECTED_RUNNER_DIGEST="${{ secrets.TRUSTED_BUILD_RUNNER_DIGEST }}"
           
           cosign verify-attestation \
-            --type slsaprovenance \
+            --type custom-slsa-provenance \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF" > provenance-attestation.json
@@ -438,7 +454,7 @@ jobs:
           EXPECTED_SPIFFE_ID="spiffe://supplychain.local/ci/docker-builder/nextjs-webapp"
 
           cosign verify-attestation \
-            --type slsaprovenance \
+            --type custom-slsa-provenance \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF" > provenance-attestation.json
@@ -468,7 +484,7 @@ jobs:
 
           cosign verify-attestation \
             --rekor-url https://rekor.sigstore.dev \
-            --type slsaprovenance \
+            --type custom-slsa-provenance \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF" > rekor-provenance-attestation.json
