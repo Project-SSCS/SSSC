@@ -90,7 +90,8 @@ jobs:
       credentials:
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
-      options: --user root
+      #options: --user root
+      options: --user 10001 --group-add 988
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - /opt/spire/sockets:/opt/spire/sockets
