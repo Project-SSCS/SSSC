@@ -106,6 +106,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify commit is signed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA")
+
+          VERIFIED=$(echo "$RESPONSE" | jq -r '.commit.verification.verified')
+          REASON=$(echo "$RESPONSE" | jq -r '.commit.verification.reason')
+
+          echo "Verified: $VERIFIED"
+          echo "Reason: $REASON"
+
+          if [ "$VERIFIED" != "true" ]; then
+            echo "Commit signature verification failed"
+            exit 1
+          fi
+          
+
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
 
@@ -402,13 +425,13 @@ jobs:
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$IMAGE_REF"
 
-      # - name: Verify SBOM attestation
-      #  run: |
-      #    cosign verify-attestation \
-      #      --type spdxjson \
-      #      --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
-      #      --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-      #      "$IMAGE_REF" \
+      - name: Verify SBOM attestation
+        run: |
+          cosign verify-attestation \
+            --type spdxjson \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE_REF" \
 
       - name: Verify provenance attestation
         run: |
