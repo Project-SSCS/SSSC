@@ -193,9 +193,10 @@ jobs:
 
       - name: Scan SBOM for CVEs (Grype)
         id: scan
+        shell: bash
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
-            | sh -s -- -b /usr/local/bin
+          grype version
+          
           grype sbom:sbom.spdx.json -o json > grype.json
           # deduped plain CVE list (also used to detect "nothing found")
           jq -r '.matches[].vulnerability.id' grype.json | grep -E '^CVE-' | sort -u > cves.txt
