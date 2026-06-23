@@ -1,4 +1,4 @@
-name: Zero trust Build and  Deploy to AKS
+name: Zero trust Build and Deploy to Azure Kubernetes Service
 
 on:
   push:
