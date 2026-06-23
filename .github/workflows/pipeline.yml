@@ -1,4 +1,4 @@
-name: Build, Push to ACR, Deploy to AKS
+name: Zero trust Build and  Deploy to AKS
 
 on:
   push:
