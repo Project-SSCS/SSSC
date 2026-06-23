@@ -33,7 +33,7 @@ jobs:
       - name: Pull build runner image
         run: |
           az acr login --name "${{ vars.ACR_NAME }}"
-          docker pull "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:2.0"
+          docker pull "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:3.0"
 
       - name: Verify build runner digest
         shell: bash
@@ -41,7 +41,7 @@ jobs:
           EXPECTED_DIGEST="${{ vars.TRUSTED_BUILD_RUNNER_DIGEST }}"
           ACTUAL_DIGEST=$(
             docker inspect \
-              "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:2.0" \
+              "${{ vars.ACR_NAME }}.azurecr.io/nextjs-build-runner:3.0" \
               --format='{{index .RepoDigests 0}}' \
               | cut -d@ -f2
             )
