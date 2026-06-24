@@ -1,0 +1,59 @@
+FROM ubuntu:24.04
+
+ARG SPIRE_VERSION=1.11.2
+ARG USER_NAME=azureuser
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    ca-certificates \
+    jq \
+    bash \
+    unzip \
+    docker.io \
+    nodejs \
+    npm \
+    sudo \
+    gnupg \
+    lsb-release \
+    apt-transport-https \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Grype 
+RUN curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | \
+    sh -s -- -b /usr/local/bin
+
+# SPIRE agent CLI
+RUN curl -L -o /tmp/spire.tar.gz \
+    https://github.com/spiffe/spire/releases/download/v${SPIRE_VERSION}/spire-${SPIRE_VERSION}-linux-amd64-musl.tar.gz \
+    && tar -xzf /tmp/spire.tar.gz -C /tmp \
+    && mv /tmp/spire-*/bin/spire-agent /usr/local/bin/spire-agent \
+    && chmod +x /usr/local/bin/spire-agent \
+    && rm -rf /tmp/spire*
+
+# Azure CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/*
+
+
+# Create non-root user with UID/GID 1000
+RUN if ! getent group ${USER_GID} >/dev/null; then \
+      groupadd --gid ${USER_GID} ${USER_NAME}; \
+    fi && \
+    if ! getent passwd ${USER_UID} >/dev/null; then \
+      useradd \
+        --uid ${USER_UID} \
+        --gid ${USER_GID} \
+        --create-home \
+        --shell /bin/bash \
+        ${USER_NAME}; \
+    fi && \
+    mkdir -p /workspace && \
+    chown -R ${USER_UID}:${USER_GID} /workspace
+
+WORKDIR /workspace
+
+USER ${USER_UID}:${USER_GID}

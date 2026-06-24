@@ -1,0 +1,21 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    ca-certificates \
+    jq \
+    bash \
+    unzip \
+    docker.io \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Azure CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# kubectl
+RUN az aks install-cli
+
+WORKDIR /workspace
